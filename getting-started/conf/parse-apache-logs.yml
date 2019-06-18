@@ -1,0 +1,42 @@
+version: 1.1.2
+documentation: LogIsland analytics main config file. Put here every engine or component config
+
+engine:
+  component: com.hurence.logisland.engine.spark.KafkaStreamProcessingEngine
+  configuration:
+    spark.app.name: GettingStarted
+    spark.master: local[4]
+    spark.driver.memory: 1G
+    spark.streaming.batchDuration: 500
+    spark.streaming.kafka.maxRatePerPartition: 1000
+    spark.streaming.timeout: -1
+    spark.ui.port: 4050
+  streamConfigurations:
+
+    - stream: parsing_stream
+      component: com.hurence.logisland.stream.spark.KafkaRecordStreamParallelProcessing
+      configuration:
+        kafka.input.topics: logisland_raw
+        kafka.output.topics: logisland_events
+        kafka.error.topics: logisland_errors
+        kafka.input.topics.serializer: none
+        kafka.output.topics.serializer: com.hurence.logisland.serializer.JsonSerializer
+        kafka.error.topics.serializer: com.hurence.logisland.serializer.JsonSerializer
+        kafka.metadata.broker.list: kafka:9092
+        kafka.zookeeper.quorum: zookeeper:2181
+        kafka.topic.autoCreate: true
+        kafka.topic.default.partitions: 4
+        kafka.topic.default.replicationFactor: 1
+      processorConfigurations:
+
+        # a parser that produce events from an apache log REGEX
+        - processor: apache_parser
+          component: com.hurence.logisland.processor.SplitText
+          configuration:
+            record.type: apache_log
+            value.regex: (\S+)\s+(\S+)\s+(\S+)\s+\[([\w:\/]+\s[+\-]\d{4})\]\s+"(\S+)\s+(\S+)\s*(\S*)"\s+(\S+)\s+(\S+)
+            value.fields: src_ip,identd,user,record_time,http_method,http_query,http_version,http_status,bytes_out
+
+        # dump stuff to std output
+        - processor: apache_parser
+          component: com.hurence.logisland.processor.DebugStream
