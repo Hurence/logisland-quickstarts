@@ -4,6 +4,8 @@ services:
     image: wurstmeister/zookeeper
     ports:
       - "2181:2181"
+    networks:
+      - logisland
 
   kafka:
     image: wurstmeister/kafka:0.10.2.1
@@ -16,6 +18,8 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./data:/tmp/data
+    networks:
+      - logisland
 
   logisland:
     image: hurence/logisland:latest
@@ -28,6 +32,16 @@ services:
       KAFKA_BROKERS: kafka:9092
       ZK_QUORUM: zookeeper:2181
       REDIS_CONNECTION: redis:6379
+    networks:
+      - logisland
+
+  loggen:
+    image: hurence/loggen
+    networks:
+      - logisland
+    environment:
+      LOGGEN_NUM: 500
+      KAFKA_BROKERS: kafka:9092
 
   redis:
     hostname: redis
