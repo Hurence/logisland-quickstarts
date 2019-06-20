@@ -36,7 +36,7 @@ services:
       - logisland
 
   loggen:
-    image: hurence/loggen
+    image: hurence/loggen:latest
     networks:
       - logisland
     environment:
