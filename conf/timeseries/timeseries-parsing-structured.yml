@@ -85,7 +85,7 @@ engine:
         read.stream.service.provider: kafka_in_service
         write.topics.serializer: com.hurence.logisland.serializer.JsonSerializer
         write.stream.service.provider: console_service
-        groupby.keys: tagname
+        groupby: tagname
 
       processorConfigurations:
 
@@ -93,4 +93,6 @@ engine:
         - processor: timeseries_converter
           component: com.hurence.logisland.processor.ConvertToTimeseries
           configuration:
-            group.by.field: tagname
+            groupby: tagname
+            metric: max;min;trend;movavg:10,minutes;scale:4;sax:7,0.01,9
+

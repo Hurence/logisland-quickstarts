@@ -1,0 +1,10 @@
+version: '3'
+services:
+
+  mongo:
+    hostname: mongo
+    image: 'mongo:3.6.11'
+    ports: 
+      - 27017:27017
+    networks:
+      - logisland

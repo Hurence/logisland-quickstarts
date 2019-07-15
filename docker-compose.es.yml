@@ -1,15 +1,6 @@
 version: '3'
 services:
 
-  # Logisland container : does nothing but launching
-  logisland:
-    network_mode: host
-    image: hurence/logisland:1.1.2
-    command: tail -f bin/logisland.sh
-    environment:
-      ES_HOSTS: localhost:9300
-      ES_CLUSTER_NAME: es-logisland
-
   # ES container
   # make sure to increase vm.max_map_count kernel setting like documented here :
   # https://www.elastic.co/guide/en/elasticsearch/reference/current/docker.html
@@ -21,22 +12,21 @@ services:
       - transport.host=0.0.0.0
       - xpack.security.enabled=false
     hostname: elasticsearch
-    image: 'docker.elastic.co/elasticsearch/elasticsearch:5.4.0'
+    image: 'docker.elastic.co/elasticsearch/elasticsearch:6.6.2'
     ports:
       - '9200:9200'
       - '9300:9300'
     networks:
-      - es
+      - logisland
 
   # Kibana container
   kibana:
     environment:
       - ELASTICSEARCH_URL=http://elasticsearch:9200
-    image: 'docker.elastic.co/kibana/kibana:5.4.0'
+    image: 'docker.elastic.co/kibana/kibana:6.6.2'
     ports:
       - '5601:5601'
     networks:
-      - es
+      - logisland
 
-networks:
-  es:
+    

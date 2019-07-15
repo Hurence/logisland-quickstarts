@@ -23,6 +23,10 @@ services:
 
   logisland:
     image: hurence/logisland:latest
+    entrypoint: 
+      - "tail"
+      - "-f"
+      - "bin/logisland.sh"
     ports:
       - '4050:4050'    
     volumes:

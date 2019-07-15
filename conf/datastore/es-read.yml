@@ -14,33 +14,16 @@ engine:
   configuration:
     spark.app.name: RetrieveDataFromElasticsearchDemo
     spark.master: local[4]
-    spark.driver.memory: 1G
-    spark.driver.cores: 1
-    spark.executor.memory: 2G
-    spark.executor.instances: 4
-    spark.executor.cores: 2
-    spark.yarn.queue: default
-    spark.yarn.maxAppAttempts: 4
-    spark.yarn.am.attemptFailuresValidityInterval: 1h
-    spark.yarn.max.executor.failures: 20
-    spark.yarn.executor.failuresValidityInterval: 1h
-    spark.task.maxFailures: 8
-    spark.serializer: org.apache.spark.serializer.KryoSerializer
-    spark.streaming.batchDuration: 4000
-    spark.streaming.backpressure.enabled: false
-    spark.streaming.unpersist: false
-    spark.streaming.blockInterval: 500
+    spark.driver.memory: 2G
+    spark.streaming.batchDuration: 200
     spark.streaming.kafka.maxRatePerPartition: 3000
     spark.streaming.timeout: -1
-    spark.streaming.kafka.maxRetries: 3
-    spark.streaming.ui.retainedBatches: 200
-    spark.streaming.receiver.writeAheadLog.enable: false
     spark.ui.port: 4050
 
   controllerServiceConfigurations:
 
     - controllerService: elasticsearch_service
-      component: com.hurence.logisland.service.elasticsearch.Elasticsearch_2_4_0_ClientService
+      component: com.hurence.logisland.service.elasticsearch.Elasticsearch_6_6_2_ClientService
       type: service
       documentation: elasticsearch 2.4.0 service implementation
       configuration:

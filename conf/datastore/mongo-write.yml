@@ -10,9 +10,9 @@ documentation: LogIsland analytics main config file. Put here every engine or co
 engine:
   component: com.hurence.logisland.engine.spark.KafkaStreamProcessingEngine
   type: engine
-  documentation: Index some apache logs with logisland
+  documentation: Index some apache logs to MongoDB with logisland
   configuration:
-    spark.app.name: IndexApacheLogsDemo
+    spark.app.name: IndexApacheLogsToMongo
     spark.master: local[4]
     spark.driver.memory: 1G
     spark.driver.cores: 1
@@ -40,14 +40,13 @@ engine:
   controllerServiceConfigurations:
 
     - controllerService: datastore_service
-      component: com.hurence.logisland.service.solr.Solr_6_6_2_ClientService
-      type: service
-      documentation: "SolR 6.6.2 service"
+      component: com.hurence.logisland.service.mongodb.MongoDBControllerService
       configuration:
-        solr.cloud: false
-        solr.connection.string: ${SOLR_CONNECTION}
-        solr.collection: solr-apache-logs
-        solr.concurrent.requests: 4
+        mongo.uri: ${MONGO_URI}
+        mongo.db.name: logisland
+        mongo.collection.name: apache
+        # possible values ACKNOWLEDGED, UNACKNOWLEDGED, FSYNCED, JOURNALED, REPLICA_ACKNOWLEDGED, MAJORITY
+        mongo.write.concern: ACKNOWLEDGED
         flush.interval: 2000
         batch.size: 1000
 
@@ -82,10 +81,10 @@ engine:
             value.regex: (\S+)\s+(\S+)\s+(\S+)\s+\[([\w:\/]+\s[+\-]\d{4})\]\s+"(\S+)\s+(\S+)\s*(\S*)"\s+(\S+)\s+(\S+)
             value.fields: src_ip,identd,user,record_time,http_method,http_query,http_version,http_status,bytes_out
 
-        # all the parsed records are added to solr by bulk
-        - processor: solr_publisher
+        # all the parsed records are added to mongo by bulk
+        - processor: mongo_publisher
           component: com.hurence.logisland.processor.datastore.BulkPut
           type: processor
-          documentation: "indexes processed events in SolR"
+          documentation: "indexes processed events in Mongo"
           configuration:
             datastore.client.service: datastore_service
