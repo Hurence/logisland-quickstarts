@@ -28,9 +28,11 @@ services:
       - "-f"
       - "bin/logisland.sh"
     ports:
-      - '4050:4050'    
+      - '4050:4050'
+      - '5005:5005'
     volumes:
       - ./conf:/opt/logisland/conf
+      - ./data:/opt/logisland/data
     environment:
       KAFKA_HOME: /opt/kafka_2.11-0.10.2.2
       KAFKA_BROKERS: kafka:9092

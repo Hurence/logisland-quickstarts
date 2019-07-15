@@ -5,41 +5,32 @@ engine:
   component: com.hurence.logisland.engine.spark.KafkaStreamProcessingEngine
   configuration:
     spark.app.name: TimeseriesParsing
-    spark.master: local[1]
-    spark.streaming.batchDuration: 2000
+    spark.master: local[2]
+    spark.streaming.batchDuration: 200
     spark.streaming.kafka.maxRatePerPartition: 10000
+    spark.streaming.timeout: -1
+  
   controllerServiceConfigurations:
 
-    - controllerService: local_file_service
+    - controllerService: file_service
       component: com.hurence.logisland.stream.spark.structured.provider.LocalFileStructuredStreamProviderService
       configuration:
-        local.file.input.path: /data
+        local.input.path: /opt/logisland/data/timeseries
 
     - controllerService: console_service
       component: com.hurence.logisland.stream.spark.structured.provider.ConsoleStructuredStreamProviderService
 
-    - controllerService: kafka_out_service
-      component: com.hurence.logisland.stream.spark.structured.provider.KafkaStructuredStreamProviderService
-      configuration:
-        kafka.output.topics: logisland_measures
-        kafka.error.topics: logisland_errors
-        kafka.output.topics.serializer: com.hurence.logisland.serializer.JsonSerializer
-        kafka.error.topics.serializer: com.hurence.logisland.serializer.JsonSerializer
-        kafka.metadata.broker.list: localhost:9092
-        kafka.zookeeper.quorum: localhost:2181
-        kafka.topic.autoCreate: true
-        kafka.topic.default.partitions: 4
-        kafka.topic.default.replicationFactor: 1
-
-    - controllerService: kafka_in_service
+    - controllerService: kafka_service
       component: com.hurence.logisland.stream.spark.structured.provider.KafkaStructuredStreamProviderService
       configuration:
         kafka.input.topics: logisland_measures
+        kafka.output.topics: logisland_measures
         kafka.error.topics: logisland_errors
         kafka.input.topics.serializer: com.hurence.logisland.serializer.JsonSerializer
+        kafka.output.topics.serializer: com.hurence.logisland.serializer.JsonSerializer
         kafka.error.topics.serializer: com.hurence.logisland.serializer.JsonSerializer
-        kafka.metadata.broker.list: localhost:9092
-        kafka.zookeeper.quorum: localhost:2181
+        kafka.metadata.broker.list: kafka:9092
+        kafka.zookeeper.quorum: zookeeper:2181
         kafka.topic.autoCreate: true
         kafka.topic.default.partitions: 4
         kafka.topic.default.replicationFactor: 1
@@ -52,9 +43,9 @@ engine:
       component: com.hurence.logisland.stream.spark.structured.StructuredStream
       configuration:
         read.topics.serializer: none
-        read.stream.service.provider: local_file_service
+        read.stream.service.provider: file_service
         write.topics.serializer: com.hurence.logisland.serializer.JsonSerializer
-        write.stream.service.provider: kafka_out_service
+        write.stream.service.provider: kafka_service
       processorConfigurations:
 
         - processor: historian_parser
@@ -82,7 +73,7 @@ engine:
       configuration:
         read.topics.key.serializer: com.hurence.logisland.serializer.StringSerializer
         read.topics.serializer: com.hurence.logisland.serializer.JsonSerializer
-        read.stream.service.provider: kafka_in_service
+        read.stream.service.provider: kafka_service
         write.topics.serializer: com.hurence.logisland.serializer.JsonSerializer
         write.stream.service.provider: console_service
         groupby: tagname
@@ -94,5 +85,5 @@ engine:
           component: com.hurence.logisland.processor.ConvertToTimeseries
           configuration:
             groupby: tagname
-            metric: max;min;trend;movavg:10,minutes;scale:4;sax:7,0.01,9
+            metric: max;min;avg;count;trend;scale:0.5;sax:5,0.01,6
 
