@@ -8,3 +8,14 @@ services:
       - '8983:8983'
     networks:
       - logisland
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+        #env_file:
+        #- 'env.grafana'
+    networks:
+      - logisland        
+    links:
+      - solr
