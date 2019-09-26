@@ -1,6 +1,5 @@
 curl "http://localhost:8983/solr/admin/collections?action=CREATE&name=historian&numShards=2&replicationFactor=1"
 
-
 curl -X POST -H 'Content-type:application/json' --data-binary '{
   "add-field-type" : {
      "name":"ngramtext",
@@ -10,7 +9,7 @@ curl -X POST -H 'Content-type:application/json' --data-binary '{
         "tokenizer":{
            "class":"solr.NGramTokenizerFactory",
            "minGramSize":"2",
-           "maxGramSize":"5"  },
+           "maxGramSize":"10"  },
         "filters":[{
            "class":"solr.LowerCaseFilterFactory" }]
       },
@@ -36,6 +35,6 @@ curl -X POST -H 'Content-type:application/json' --data-binary '{
   "add-field":{ "name":"chunk_sax",  "type":"ngramtext" },
   "add-field":{ "name":"chunk_trend",  "type":"boolean"},
   "add-field":{ "name":"chunk_window_ms",  "type":"plong" },  
-  "add-field":{ "name":"tagname",  "type":"text" },
+  "add-field":{ "name":"tagname",  "type":"text_general" },
   "add-field":{ "name":"quality",  "type":"pfloat" }
 }' http://localhost:8983/solr/historian/schema

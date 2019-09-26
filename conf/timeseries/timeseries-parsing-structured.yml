@@ -23,7 +23,7 @@ engine:
     - controllerService: kafka_service
       component: com.hurence.logisland.stream.spark.structured.provider.KafkaStructuredStreamProviderService
       configuration:
-        kafka.input.topics: logisland_measures
+        kafka.input.topics: logisland_raw
         kafka.output.topics: logisland_measures
         kafka.error.topics: logisland_errors
         kafka.input.topics.serializer: com.hurence.logisland.serializer.JsonSerializer
@@ -35,6 +35,31 @@ engine:
         kafka.topic.default.partitions: 4
         kafka.topic.default.replicationFactor: 1
 
+    - controllerService: kafka_service_out
+      component: com.hurence.logisland.stream.spark.structured.provider.KafkaStructuredStreamProviderService
+      configuration:
+        kafka.input.topics: logisland_measures
+        kafka.output.topics: logisland_metrics
+        kafka.error.topics: logisland_errors
+        kafka.input.topics.serializer: com.hurence.logisland.serializer.JsonSerializer
+        kafka.output.topics.serializer: com.hurence.logisland.serializer.JsonSerializer
+        kafka.error.topics.serializer: com.hurence.logisland.serializer.JsonSerializer
+        kafka.metadata.broker.list: kafka:9092
+        kafka.zookeeper.quorum: zookeeper:2181
+        kafka.topic.autoCreate: true
+        kafka.topic.default.partitions: 4
+        kafka.topic.default.replicationFactor: 1        
+
+    - controllerService: datastore_service
+      component: com.hurence.logisland.service.solr.Solr8ClientService
+      configuration:
+        solr.cloud: false
+        solr.connection.string: http://solr1:8983/solr
+        solr.collection: historian
+        solr.concurrent.requests: 4
+        flush.interval: 1000
+        batch.size: 200
+
   streamConfigurations:
 
     # This stream take all raw events as lines comming from local files
@@ -43,7 +68,7 @@ engine:
       component: com.hurence.logisland.stream.spark.structured.StructuredStream
       configuration:
         read.topics.serializer: none
-        read.stream.service.provider: file_service
+        read.stream.service.provider: kafka_service
         write.topics.serializer: com.hurence.logisland.serializer.JsonSerializer
         write.stream.service.provider: kafka_service
       processorConfigurations:
@@ -73,10 +98,12 @@ engine:
       configuration:
         read.topics.key.serializer: com.hurence.logisland.serializer.StringSerializer
         read.topics.serializer: com.hurence.logisland.serializer.JsonSerializer
-        read.stream.service.provider: kafka_service
+        read.stream.service.provider: kafka_service_out
         write.topics.serializer: com.hurence.logisland.serializer.JsonSerializer
-        write.stream.service.provider: console_service
+        write.stream.service.provider: kafka_service_out
         groupby: tagname
+        chunk.size: 50
+        state.timeout.ms: 30000
 
       processorConfigurations:
 
@@ -85,5 +112,10 @@ engine:
           component: com.hurence.logisland.processor.ConvertToTimeseries
           configuration:
             groupby: tagname
-            metric: max;min;avg;count;trend;scale:0.5;sax:5,0.01,6
+            metric: max;min;avg;count;trend;sax:7,0.01,10
 
+        # all the parsed records are added to solr by bulk
+        - processor: solr_publisher
+          component: com.hurence.logisland.processor.datastore.BulkPut
+          configuration:
+            datastore.client.service: datastore_service

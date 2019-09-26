@@ -2,6 +2,17 @@ version: "3.0"
 
 services:
 
+  loggen:
+    image: hurence/loggen:latest
+    networks:
+      - logisland
+    environment:
+      LOGGEN_SLEEP: 0.2
+      LOGGEN_NUM: 10
+      KAFKA_BROKERS: kafka:9092
+      LOGGEN_MODE: METRIC
+      LOGGEN_KAFKA_TOPIC: logisland_raw
+
   solr1:
     image: solr:8
     ports:
@@ -12,8 +23,9 @@ services:
       - ./historian/solr-metrics-influxdb-1.1.jar:/opt/solr/server/solr-webapp/webapp/WEB-INF/lib/solr-influxdb-reporter.jar
       - ./historian/metrics-influxdb-0.9.3.jar:/opt/solr/server/solr-webapp/webapp/WEB-INF/lib/metrics-influxdb-0.9.3.jar
       - ./historian/grafana-register.sh:/opt/grafana-register.sh
+      - ./historian/create-historian.sh:/opt/create-historian.sh        
       - ./historian/solr-dashboard.json:/opt/solr-dashboard.json
-    command: /bin/bash -c "/usr/bin/wait-for-it.sh -h zookeeper -p 2181 -t 0 && /usr/bin/wait-for-it.sh -h influxdb -p 8086 -t 0 && /usr/bin/wait-for-it.sh -h grafana -p 3000 -t 0 && cd /opt && /opt/grafana-register.sh; /opt/solr/bin/solr -c -f -z zookeeper:2181 -m 1g"
+    command: /bin/bash -c "/usr/bin/wait-for-it.sh -h zookeeper -p 2181 -t 0 && /usr/bin/wait-for-it.sh -h influxdb -p 8086 -t 0 && /usr/bin/wait-for-it.sh -h grafana -p 3000 -t 0 && cd /opt && /opt/grafana-register.sh; /opt/solr/bin/solr -c -z zookeeper:2181 -m 1g; /usr/bin/wait-for-it.sh -h localhost -p 8983 -t 0 && /opt/create-historian.sh; tail -f  /var/solr/logs/solr.log "
     links:
       - influxdb
       - grafana
@@ -24,12 +36,13 @@ services:
   solr2:
     image: solr:8
     volumes:
-      - ./historian/wait-for-it.sh:/usr/bin/wait-for-it.sh
+      - ./historian/wait-for-it.sh:/usr/bin/wait-for-it.sh    
       - ./historian/solr.xml:/opt/solr/server/solr/solr.xml
       - ./historian/solr-metrics-influxdb-1.1.jar:/opt/solr/server/solr-webapp/webapp/WEB-INF/lib/solr-influxdb-reporter.jar
       - ./historian/metrics-influxdb-0.9.3.jar:/opt/solr/server/solr-webapp/webapp/WEB-INF/lib/metrics-influxdb-0.9.3.jar
     command: /bin/bash -c "/usr/bin/wait-for-it.sh -h zookeeper -p 2181 -t 0; /opt/solr/bin/solr -c -f -z zookeeper:2181 -m 1g"
     links:
+      - solr1
       - influxdb
       - zookeeper      
     networks:
