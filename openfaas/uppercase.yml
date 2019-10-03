@@ -1,0 +1,6 @@
+version: 1.0
+provider:
+  name: openfaas
+functions:
+  uppercase:
+    image: hurence/openfaas-uppercase:latest

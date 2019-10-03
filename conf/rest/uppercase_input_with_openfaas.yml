@@ -35,7 +35,7 @@ engine:
     spark.streaming.kafka.maxRetries: 3
     spark.streaming.ui.retainedBatches: 200
     spark.streaming.receiver.writeAheadLog.enable: false
-    spark.ui.port: 4053
+    spark.ui.port: 4050
 
   controllerServiceConfigurations:
 
