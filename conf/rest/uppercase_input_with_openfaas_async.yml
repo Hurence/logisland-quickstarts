@@ -42,7 +42,7 @@ engine:
     - controllerService: faas_service_rest
       component: com.hurence.logisland.rest.service.lookup.RestLookupService
       configuration:
-        rest.lookup.url: http://192.168.99.100:31112/function/${function_name}
+        rest.lookup.url: "http://192.168.99.100:31112/function/${function_name}"
         record.serializer: com.hurence.logisland.serializer.JsonSerializer
         #record.schema: ff
         rest.lookup.basic.auth.username: admin
@@ -82,7 +82,7 @@ engine:
             function_name: uppercase
         # add field if defect found
         - processor: defect_tagger
-          component: com.hurence.logisland.rest.processor.lookup.CallRequest
+          component: com.hurence.logisland.rest.processor.lookup.AsyncCallRequest
           configuration:
             http.client.service: faas_service_rest
             strategy: overwrite_existing

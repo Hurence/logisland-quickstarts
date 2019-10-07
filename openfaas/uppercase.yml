@@ -4,3 +4,6 @@ provider:
 functions:
   uppercase:
     image: hurence/openfaas-uppercase:latest
+    labels:
+      com.openfaas.scale.min: "1"
+      com.openfaas.scale.max: "25"
