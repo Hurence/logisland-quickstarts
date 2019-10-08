@@ -43,8 +43,8 @@ engine:
       component: com.hurence.logisland.rest.service.lookup.RestLookupService
       configuration:
         rest.lookup.url: "http://192.168.99.100:31112/function/${function_name}"
-        record.serializer: com.hurence.logisland.serializer.JsonSerializer
-        #record.schema: ff
+        record.deserializer.for.body: none
+        #record.schema.for.body: ff
         rest.lookup.basic.auth.username: admin
         rest.lookup.basic.auth.password: 4f1c1b3f032b635cf1a4b1cb3d9a514412d0b7ab
         rest.lookup.digest.auth: false
@@ -86,19 +86,8 @@ engine:
           configuration:
             http.client.service: faas_service_rest
             strategy: overwrite_existing
-            field.http.response: copy_to_uppercase
+            field.http.response: http_query_uppercase
             request.method: "POST"
-            request.mime.type: "application/json"
-            input.as.body: true
-        - processor: flatten
-          component: com.hurence.logisland.processor.FlatMap
-          documentation: "extract http response from root record and remove root record"
-          configuration:
-            keep.root.record: false
-            copy.root.record.fields: false
-        - processor: flatten
-          component: com.hurence.logisland.processor.FlatMap
-          documentation: "extract http response body from root record and remove root record"
-          configuration:
-            keep.root.record: false
-            copy.root.record.fields: false
+            request.mime.type: "plain/text"
+            request.body: "${http_query}"
+            keep.only.response.body: true
