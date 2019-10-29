@@ -1,0 +1,13 @@
+version: "3.0"
+
+services:
+
+  loggen:
+    image: hurence/loggen:latest
+    networks:
+      - logisland
+    environment:
+      LOGGEN_MODE: IMG
+      LOGGEN_SLEEP: 1
+      LOGGEN_NUM: 2
+      KAFKA_BROKERS: kafka:9092
