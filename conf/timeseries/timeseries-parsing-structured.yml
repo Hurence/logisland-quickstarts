@@ -5,8 +5,9 @@ engine:
   component: com.hurence.logisland.engine.spark.KafkaStreamProcessingEngine
   configuration:
     spark.app.name: TimeseriesParsing
-    spark.master: local[2]
-    spark.streaming.batchDuration: 200
+    spark.master: local[4]
+    spark.driver.memory: 4G
+    spark.streaming.batchDuration: 2000
     spark.streaming.kafka.maxRatePerPartition: 10000
     spark.streaming.timeout: -1
   
@@ -112,8 +113,20 @@ engine:
           component: com.hurence.logisland.processor.ConvertToTimeseries
           configuration:
             groupby: tagname
-            metric: max;min;avg;count;trend;sax:7,0.01,10
+            metric: max;min;avg;count;trend;sax:7,0.01,10;sum;first
 
+        # Make one chronix chunk from all records
+        - processor: add name
+          component: com.hurence.logisland.processor.AddFields
+          configuration:
+            name: ${record_name}
+
+        # Make one chronix chunk from all records
+        - processor: convert chunk value into base64 string
+          component: com.hurence.logisland.processor.EncodeBase64
+          configuration:
+            source.fields: chunk_value
+            destination.fields: chunk_value
         # all the parsed records are added to solr by bulk
         - processor: solr_publisher
           component: com.hurence.logisland.processor.datastore.BulkPut

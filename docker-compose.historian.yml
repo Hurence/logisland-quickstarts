@@ -7,8 +7,8 @@ services:
     networks:
       - logisland
     environment:
-      LOGGEN_SLEEP: 0.2
-      LOGGEN_NUM: 10
+      LOGGEN_SLEEP: 2
+      LOGGEN_NUM: 500
       KAFKA_BROKERS: kafka:9092
       LOGGEN_MODE: METRIC
       LOGGEN_KAFKA_TOPIC: logisland_raw
@@ -69,12 +69,25 @@ services:
       - logisland
 
   grafana:
-    image: grafana/grafana:latest
+    image: hurence/grafana-historian:1.2.0
     ports:
       - "3000:3000"
-        #env_file:
-        #- 'env.grafana'
     links:
       - influxdb
+    networks:
+      - logisland
+
+  historian:
+    image: hurence/historian:latest
+    command: >
+      /bin/bash
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./historian/web-ui/conf:/opt/historian/conf/
+      - ./historian/web-ui/log4j.properties:/opt/historian/log4j.properties
+    links:
+      - zookeeper
+      - solr1
     networks:
       - logisland

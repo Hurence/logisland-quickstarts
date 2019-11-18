@@ -26,8 +26,10 @@ curl -X POST -H 'Content-type:application/json' --data-binary '{
 curl -X POST -H 'Content-type:application/json' --data-binary '{
   "add-field":{ "name":"chunk_start", "type":"plong" },
   "add-field":{ "name":"chunk_end",   "type":"plong"},
-  "add-field":{ "name":"chunk_value",  "type":"binary" },
+  "add-field":{ "name":"chunk_value",  "type":"string" },
   "add-field":{ "name":"chunk_avg",  "type":"pdouble"  },
+  "add-field":{ "name":"chunk_sum",  "type":"pdouble"  },
+  "add-field":{ "name":"chunk_first",  "type":"pdouble"  },
   "add-field":{ "name":"chunk_size_bytes",  "type":"pint" },
   "add-field":{ "name":"chunk_size",  "type":"pint" },
   "add-field":{ "name":"chunk_min",  "type":"pdouble" },
@@ -36,5 +38,5 @@ curl -X POST -H 'Content-type:application/json' --data-binary '{
   "add-field":{ "name":"chunk_trend",  "type":"boolean"},
   "add-field":{ "name":"chunk_window_ms",  "type":"plong" },  
   "add-field":{ "name":"tagname",  "type":"text_general" },
-  "add-field":{ "name":"quality",  "type":"pfloat" }
+  "add-field":{ "name":"name",  "type":"string", "indexed":"true", "stored":"true", "required":"true" }
 }' http://localhost:8983/solr/historian/schema

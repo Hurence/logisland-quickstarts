@@ -46,7 +46,8 @@ services:
     networks:
       - logisland
     environment:
-      LOGGEN_NUM: 500
+      LOGGEN_SLEEP: 200
+      LOGGEN_NUM: 5
       KAFKA_BROKERS: kafka:9092
 
   redis:
