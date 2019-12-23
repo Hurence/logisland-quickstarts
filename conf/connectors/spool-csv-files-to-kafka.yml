@@ -1,0 +1,212 @@
+version: 1.1.2
+documentation: LogIsland Kafka Connect Integration
+
+engine:
+  component: com.hurence.logisland.engine.spark.KafkaStreamProcessingEngine
+  type: engine
+  documentation: Use Kafka connectors with logisland
+  configuration:
+    spark.app.name: LogislandConnect
+    spark.master: local[2]
+    spark.driver.memory: 512M
+    spark.driver.cores: 1
+    spark.executor.memory: 512M
+    spark.executor.instances: 4
+    spark.executor.cores: 2
+    spark.yarn.queue: default
+    spark.yarn.maxAppAttempts: 4
+    spark.yarn.am.attemptFailuresValidityInterval: 1h
+    spark.yarn.max.executor.failures: 20
+    spark.yarn.executor.failuresValidityInterval: 1h
+    spark.task.maxFailures: 8
+    spark.serializer: org.apache.spark.serializer.KryoSerializer
+    spark.streaming.batchDuration: 2000
+    spark.streaming.backpressure.enabled: false
+    spark.streaming.blockInterval: 500
+    spark.streaming.kafka.maxRatePerPartition: 10000
+    spark.streaming.timeout: -1
+    spark.streaming.unpersist: false
+    spark.streaming.kafka.maxRetries: 3
+    spark.streaming.ui.retainedBatches: 200
+    spark.streaming.receiver.writeAheadLog.enable: false
+    spark.ui.port: 4040
+
+  controllerServiceConfigurations:
+
+    - controllerService: spool_dir_source
+      component: com.hurence.logisland.stream.spark.provider.KafkaConnectStructuredSourceProviderService
+      documentation: A kafka source connector provider reading from its own source and providing structured streaming to the underlying layer
+      configuration:
+        kc.data.value.converter: com.hurence.logisland.connect.converter.LogIslandRecordConverter
+        kc.data.value.converter.properties: |
+          record.type=evoa_measure
+          record.serializer=com.hurence.logisland.serializer.KryoSerializer
+          do.nest.record=true
+        kc.data.key.converter: com.hurence.logisland.connect.converter.LogIslandRecordConverter
+        kc.data.key.converter.properties: record.serializer=com.hurence.logisland.serializer.KryoSerializer
+        kc.worker.tasks.max: 1
+        kc.connector.class: com.hurence.logisland.connect.spooldir.SpoolDirCsvSourceConnector
+        kc.connector.properties: |
+          input.path=/Users/tom/Documents/workspace/data/in
+          input.file.pattern=^.*\.csv$
+          error.path=/Users/tom/Documents/workspace/data/error
+          finished.path=/Users/tom/Documents/workspace/data/finished
+          halt.on.error=false
+          topic=logisland_raw
+          csv.first.row.as.header=true
+          csv.separator.char=59
+          batch.size-200
+          parser.timestamp.date.formats=dd/MM/yyyy HH:mm:ss
+          schema.generation.enabled=false
+          key.schema={"name":"com.hurence.logisland.record.TimeserieRecordKey","type":"STRUCT","isOptional":true,"fieldSchemas":{"tagname":{"type":"STRING","isOptional":false}}}
+          value.schema={"name":"com.hurence.logisland.record.TimeserieRecordValue","type":"STRUCT","isOptional":false,"fieldSchemas":{"timestamp":{"name":"org.apache.kafka.connect.data.Timestamp","type":"INT64","version":1,"isOptional":false},"value":{"type":"FLOAT64","isOptional":false},"tagname":{"type":"STRING","isOptional":false},"quality":{"type":"FLOAT32","isOptional":true}}}
+        kc.connector.offset.backing.store: memory
+
+    - controllerService: kafka_sink
+      component: com.hurence.logisland.stream.spark.structured.provider.KafkaStructuredStreamProviderService
+      configuration:
+        kafka.output.topics: evoa_measures
+        kafka.error.topics: logisland_errors
+        kafka.output.topics.serializer: com.hurence.logisland.serializer.KryoSerializer
+        kafka.error.topics.serializer: com.hurence.logisland.serializer.KryoSerializer
+        kafka.metadata.broker.list: kafka:9092
+        kafka.zookeeper.quorum: zookeeper:2181
+        kafka.topic.autoCreate: true
+        kafka.topic.default.partitions: 4
+        kafka.topic.default.replicationFactor: 1
+
+
+
+
+    - controllerService: influxdb_datastore_service
+      component: com.hurence.logisland.service.influxdb.InfluxDBControllerService
+      configuration:
+       influxdb.url: http://localhost:8086
+       influxdb.database: historian
+       influxdb.tags: evoa_measure:tagname
+       influxdb.fields: evoa_measure:record_value,quality
+       influxdb.timefield: evoa_measure:record_time,MILLISECONDS
+       influxdb.configuration_mode: explicit_tags_and_fields
+       influxdb.retention_policy: autogen
+       flush.interval: 1000
+       batch.size: 50
+
+
+    - controllerService: kafka_io
+      component: com.hurence.logisland.stream.spark.structured.provider.KafkaStructuredStreamProviderService
+      configuration:
+        kafka.security.protocol: PLAINTEXT
+        kafka.sasl.kerberos.service.name: kafka
+        kafka.input.topics: evoa_measures
+        kafka.output.topics: evoa_chunks
+        kafka.error.topics: logisland_errors
+        kafka.input.topics.serializer: com.hurence.logisland.serializer.KryoSerializer
+        kafka.output.topics.serializer: com.hurence.logisland.serializer.KryoSerializer
+        kafka.error.topics.serializer: com.hurence.logisland.serializer.KryoSerializer
+        kafka.metadata.broker.list: kafka:9092
+        kafka.zookeeper.quorum: zookeeper:2181
+        kafka.topic.autoCreate: true
+        kafka.topic.default.partitions: 4
+        kafka.topic.default.replicationFactor: 1
+
+  streamConfigurations:
+
+    - stream: compaction_stream
+      component: com.hurence.logisland.stream.spark.structured.StructuredStream
+      configuration:
+        read.topics.serializer: com.hurence.logisland.serializer.KryoSerializer
+        read.topics.key.serializer: com.hurence.logisland.serializer.KryoSerializer
+        read.stream.service.provider: kafka_io
+        write.topics.serializer: com.hurence.logisland.serializer.KryoSerializer
+        write.topics.key.serializer: com.hurence.logisland.serializer.KryoSerializer
+        write.stream.service.provider: kafka_io
+        groupby: tagname
+        chunk.size: 20
+        state.timeout.ms: 5000
+
+      processorConfigurations:
+
+        - processor: timeseries_converter
+          component: com.hurence.logisland.processor.ConvertToTimeseries
+          configuration:
+            groupby: tagname
+            metric: max;min;avg;count;trend;sax:7,0.01,10
+
+        - processor: binary_encoder
+          component: com.hurence.logisland.processor.EncodeBase64
+          configuration:
+            source.fields: chunk_value
+            destination.fields: chunk_value
+
+        - processor: stream_debugger
+          component: com.hurence.logisland.processor.DebugStream
+          configuration:
+            event.serializer: json
+
+
+    # - stream: indexing_stream
+    #   component: com.hurence.logisland.stream.spark.KafkaRecordStreamParallelProcessing
+    #   type: stream
+    #   documentation: "Concurrently process source incoming records. Source -> Kafka -> here"
+    #   configuration:
+    #     kafka.input.topics: evoa_measures
+    #     kafka.output.topics: none
+    #     kafka.error.topics: logisland_errors
+    #     kafka.input.topics.serializer: com.hurence.logisland.serializer.JsonSerializer
+    #     kafka.output.topics.serializer: none
+    #     kafka.error.topics.serializer: com.hurence.logisland.serializer.JsonSerializer
+    #     kafka.metadata.broker.list: kafka:9092
+    #     kafka.zookeeper.quorum: zookeeper:2181
+    #     kafka.topic.autoCreate: true
+    #     kafka.topic.default.partitions: 4
+    #     kafka.topic.default.replicationFactor: 1
+
+    #   processorConfigurations:
+    #     # We just print the received records (but you may do something more interesting!)
+    #     - processor: stream_debugger
+    #       component: com.hurence.logisland.processor.DebugStream
+    #       type: processor
+    #       documentation: debug records
+    #       configuration:
+    #         event.serializer: json
+
+        # - processor: publish_to_influxdb
+        #   component: com.hurence.logisland.processor.datastore.BulkPut
+        #   configuration:
+        #     default.collection: evoa_measure
+        #     datastore.client.service: influxdb_datastore_service
+
+    - stream: parsing_stream_source
+      component: com.hurence.logisland.stream.spark.structured.StructuredStream
+      documentation: "Takes records from the kafka source and distributes related partitions over a kafka topic. Records are then handed off to the indexing stream"
+      configuration:
+        read.topics.serializer: com.hurence.logisland.serializer.KryoSerializer
+        read.topics.key.serializer: com.hurence.logisland.serializer.KryoSerializer
+        read.stream.service.provider: spool_dir_source
+        write.topics.serializer: com.hurence.logisland.serializer.KryoSerializer
+        write.topics.key.serializer: com.hurence.logisland.serializer.KryoSerializer
+        write.stream.service.provider: kafka_sink
+
+      processorConfigurations:
+      
+        - processor: flatten
+          component: com.hurence.logisland.processor.FlatMap
+          type: processor
+          documentation: "Takes out data from record_value"
+          configuration:
+            keep.root.record: false
+            copy.root.record.fields: true
+
+        - processor: create_aliases
+          component: com.hurence.logisland.processor.NormalizeFields
+          configuration:
+            conflict.resolution.policy: keep_both_fields
+            record_name: tagname
+            record_value: value
+            record_time: timestamp
+
+        - processor: make_idempotent
+          component: com.hurence.logisland.processor.ModifyId
+          configuration:
+           id.generation.strategy: hashFields
+           hash.charset: US-ASCII

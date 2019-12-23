@@ -1,0 +1,154 @@
+version: 0.10.3
+documentation: >
+  LogIsland stream that parses historian csv files as records,
+  enrich them by joining a csv file and
+  store them as chronix records
+engine:
+  component: com.hurence.logisland.engine.spark.KafkaStreamProcessingEngine
+  type: engine
+  documentation: "Spark streaming engine"
+  configuration:
+    spark.app.name: EvoaHistorian
+    spark.master: yarn-cluster
+    spark.driver.memory: 2g
+    spark.driver.cores: 1
+    spark.executor.memory: 2g
+    spark.executor.cores: 1
+    spark.executor.instances: 3
+    spark.yarn.queue: default
+    spark.yarn.maxAppAttempts: 4
+    spark.yarn.am.attemptFailuresValidityInterval: 1h
+    spark.yarn.max.executor.failures: 20
+    spark.yarn.executor.failuresValidityInterval: 1h
+    spark.task.maxFailures: 8
+    spark.streaming.batchDuration: 60000
+    spark.serializer: org.apache.spark.serializer.KryoSerializer
+    spark.streaming.backpressure.enabled: false
+    spark.streaming.unpersist: false
+    spark.streaming.blockInterval: 500
+    spark.streaming.kafka.maxRatePerPartition: 1000
+    spark.streaming.timeout: -1
+    spark.streaming.kafka.maxRetries: 60
+    spark.streaming.ui.retainedBatches: 200
+    spark.streaming.receiver.writeAheadLog.enable: false
+    spark.ui.port: 4050
+
+
+  controllerServiceConfigurations:
+
+    # SolR 8 controller service
+    - controllerService: solr_datastore_service
+      component: com.hurence.logisland.service.solr.Solr8ClientService
+      configuration:
+        solr.cloud: false
+        solr.connection.string: http://islin-hdpnod1.ifp.fr:8983/solr
+        solr.collection: chronix
+        solr.concurrent.requests: 4
+        flush.interval: 2000
+        batch.size: 500
+
+    # InfluxDB datastore
+    - controllerService: influxdb_datastore_service
+      component: com.hurence.logisland.service.influxdb.InfluxDBControllerService
+      configuration:
+       influxdb.url:
+       influxdb.user: 
+       influxdb.password:
+       influxdb.database: 
+       influxdb.tags: tagname,code_install,sensor,numeric_type
+       influxdb.fields: record_value,quality
+       influxdb.timefield: record_time
+       influxdb.configuration_mode: explicit_tags_and_fields
+       influxdb.consistency_level: any
+       influxdb.retention_policy: autogen
+
+
+
+    # store an in-memory cache coming from CSV
+    - controllerService: lookup_service
+      component: com.hurence.logisland.service.cache.CSVKeyValueCacheService
+      configuration:
+        csv.format: excel_fr
+        csv.file.uri: "hdfs:///user/hdfs/evoa/conf/timeseries-lookup.csv"
+        first.line.header: true
+        row.key: tagname
+        encoding.charset: ISO-8859-1
+
+  streamConfigurations:
+
+    - stream: historian_processing_stream
+      component: com.hurence.logisland.stream.spark.KafkaRecordStreamParallelProcessing
+      type: stream
+      documentation: >
+        "a processor that parses csv lines like the following into Records:
+          timestamp;tagname;value;quality
+          16/11/2017 18:36:01;067_PI01;0;0
+          16/11/2017 18:36:01;067_PI02;0;0
+          16/11/2017 18:36:01;067_SI01;0;0
+          16/11/2017 18:36:01;067_TI01;0;0
+          16/11/2017 18:36:01;068_PI01;20,9782939455882;100"
+      configuration:
+        kafka.input.topics: evoa_historian
+        kafka.output.topics: evoa_series
+        kafka.error.topics: logisland_errors
+        kafka.input.topics.serializer: none
+        kafka.output.topics.serializer: com.hurence.logisland.serializer.JsonSerializer
+        kafka.error.topics.serializer: com.hurence.logisland.serializer.JsonSerializer
+        kafka.metadata.broker.list: islin-hdpnod1.ifp.fr:6667,islin-hdpnod2.ifp.fr:6667,islin-hdpnod3.ifp.fr:6667
+        kafka.zookeeper.quorum: islin-hdpmas1.ifp.fr:2181
+        kafka.topic.autoCreate: true
+        kafka.topic.default.partitions: 3
+        kafka.topic.default.replicationFactor: 1
+      processorConfigurations:
+
+        # a parser that produces events from httpd logs
+        - processor: parse_emtric_event
+          component: com.hurence.logisland.processor.SplitText
+          configuration:
+            record.type: historian_serie
+            key.regex: (\S*):(\S*)
+            key.fields: filename,nifi_uuid
+            value.regex: (\S+\s+\S+);((\w+)\.?(\w+-?\w+-?\w+)?\.?(\w+)?);(\S+);(\S+)
+            value.fields: record_time,tagname,code_install,sensor,numeric_type,record_value,quality
+
+        # enrich the tagname field against the K/V store
+        - processor: enrich_fields
+          component: com.hurence.logisland.processor.datastore.EnrichRecords
+          configuration:
+            datastore.client.service: lookup_service
+            record.key: tagname
+            collection.name: chronix
+
+        # convert field types
+        - processor: convert_field_types
+          component: com.hurence.logisland.processor.ConvertFieldsType
+          configuration:
+            record_value: double
+            quality: float
+
+        # creates an alias tagname/record_name. 
+        # record_name will be used as metric name into Chronix
+        - processor: create_aliases
+          component: com.hurence.logisland.processor.NormalizeFields
+          configuration:
+            conflict.resolution.policy: keep_both_fields
+            record_name: tagname
+
+        # generate an id from hashing values
+        - processor: make_idempotent
+          component: com.hurence.logisland.processor.ModifyId
+          configuration:
+           id.generation.strategy: hashFields
+           hash.charset: US-ASCII
+
+        # indexes processed metrics in SolR/Chronix
+        - processor: publish_to_solr
+          component: com.hurence.logisland.processor.datastore.BulkPut
+          configuration:
+            datastore.client.service: solr_datastore_service
+
+        # indexes processed events in Influxdb
+        - processor: publish_to_influxdb
+          component: com.hurence.logisland.processor.datastore.BulkPut
+          configuration:
+            datastore.client.service: influxdb_datastore_service

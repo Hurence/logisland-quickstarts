@@ -26,10 +26,11 @@ curl -X POST -H 'Content-type:application/json' --data-binary '{
 curl -X POST -H 'Content-type:application/json' --data-binary '{
   "add-field":{ "name":"chunk_start", "type":"plong" },
   "add-field":{ "name":"chunk_end",   "type":"plong"},
-  "add-field":{ "name":"chunk_value",  "type":"binary" },
+  "add-field":{ "name":"chunk_value",  "type":"text_general", "multiValued":false, "indexed":false, "tokenized":false },
   "add-field":{ "name":"chunk_avg",  "type":"pdouble"  },
   "add-field":{ "name":"chunk_size_bytes",  "type":"pint" },
   "add-field":{ "name":"chunk_size",  "type":"pint" },
+  "add-field":{ "name":"chunk_count",  "type":"pint" },
   "add-field":{ "name":"chunk_min",  "type":"pdouble" },
   "add-field":{ "name":"chunk_max",  "type":"pdouble" },
   "add-field":{ "name":"chunk_sax",  "type":"ngramtext" },

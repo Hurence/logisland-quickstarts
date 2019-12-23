@@ -67,7 +67,7 @@ engine:
     - stream: parsing_stream
       component: com.hurence.logisland.stream.spark.structured.StructuredStream
       configuration:
-        read.topics.serializer: none
+        read.topics.serializer: com.hurence.logisland.serializer.StringSerializer
         read.stream.service.provider: kafka_service
         write.topics.serializer: com.hurence.logisland.serializer.JsonSerializer
         write.stream.service.provider: kafka_service
@@ -113,6 +113,13 @@ engine:
           configuration:
             groupby: tagname
             metric: max;min;avg;count;trend;sax:7,0.01,10
+
+        # It seems that binary values are better handled as base64 strings under solr
+        - processor: binary_encoder
+          component: com.hurence.logisland.processor.EncodeBase64
+          configuration:
+            source.fields: chunk_value
+            destination.fields: chunk_value
 
         # all the parsed records are added to solr by bulk
         - processor: solr_publisher
