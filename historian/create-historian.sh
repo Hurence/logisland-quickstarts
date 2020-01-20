@@ -26,7 +26,7 @@ curl -X POST -H 'Content-type:application/json' --data-binary '{
 curl -X POST -H 'Content-type:application/json' --data-binary '{
   "add-field":{ "name":"chunk_start", "type":"plong" },
   "add-field":{ "name":"chunk_end",   "type":"plong"},
-  "add-field":{ "name":"chunk_value",  "type":"text_general", "multiValued":false, "indexed":false, "tokenized":false },
+  "add-field":{ "name":"chunk_value",  "type":"string", "multiValued":false, "indexed":false },
   "add-field":{ "name":"chunk_avg",  "type":"pdouble"  },
   "add-field":{ "name":"chunk_size_bytes",  "type":"pint" },
   "add-field":{ "name":"chunk_size",  "type":"pint" },
@@ -35,7 +35,14 @@ curl -X POST -H 'Content-type:application/json' --data-binary '{
   "add-field":{ "name":"chunk_max",  "type":"pdouble" },
   "add-field":{ "name":"chunk_sax",  "type":"ngramtext" },
   "add-field":{ "name":"chunk_trend",  "type":"boolean"},
-  "add-field":{ "name":"chunk_window_ms",  "type":"plong" },  
-  "add-field":{ "name":"tagname",  "type":"text_general" },
+  "add-field":{ "name":"chunk_window_ms",  "type":"plong" },
+  "add-field":{ "name":"timestamp",  "type":"plong" },
+  "add-field":{ "name":"value", "type":"pdouble" },
+  "add-field":{ "name":"chunk_first", "type":"pdouble" },
+  "add-field":{ "name":"tagname",  "type":"string", "multiValued":false },
+  "add-field":{ "name":"name",  "type":"string", "multiValued":false },
+  "add-field":{ "name":"record_value",  "type":"pdouble" },
+  "add-field":{ "name":"code_install",  "type":"string", "multiValued":false },
+  "add-field":{ "name":"sensor",  "type":"string", "multiValued":false},
   "add-field":{ "name":"quality",  "type":"pfloat" }
 }' http://localhost:8983/solr/historian/schema

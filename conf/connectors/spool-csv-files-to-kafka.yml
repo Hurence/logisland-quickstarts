@@ -7,18 +7,12 @@ engine:
   documentation: Use Kafka connectors with logisland
   configuration:
     spark.app.name: LogislandConnect
-    spark.master: local[2]
-    spark.driver.memory: 512M
+    spark.master: local[*]
+    spark.driver.memory: 4G
     spark.driver.cores: 1
-    spark.executor.memory: 512M
+    spark.executor.memory: 4G
     spark.executor.instances: 4
     spark.executor.cores: 2
-    spark.yarn.queue: default
-    spark.yarn.maxAppAttempts: 4
-    spark.yarn.am.attemptFailuresValidityInterval: 1h
-    spark.yarn.max.executor.failures: 20
-    spark.yarn.executor.failuresValidityInterval: 1h
-    spark.task.maxFailures: 8
     spark.serializer: org.apache.spark.serializer.KryoSerializer
     spark.streaming.batchDuration: 2000
     spark.streaming.backpressure.enabled: false
@@ -44,7 +38,7 @@ engine:
           do.nest.record=true
         kc.data.key.converter: com.hurence.logisland.connect.converter.LogIslandRecordConverter
         kc.data.key.converter.properties: record.serializer=com.hurence.logisland.serializer.KryoSerializer
-        kc.worker.tasks.max: 1
+        kc.worker.tasks.max: 10
         kc.connector.class: com.hurence.logisland.connect.spooldir.SpoolDirCsvSourceConnector
         kc.connector.properties: |
           input.path=/Users/tom/Documents/workspace/data/in
@@ -55,7 +49,7 @@ engine:
           topic=logisland_raw
           csv.first.row.as.header=true
           csv.separator.char=59
-          batch.size-200
+          batch.size=200
           parser.timestamp.date.formats=dd/MM/yyyy HH:mm:ss
           schema.generation.enabled=false
           key.schema={"name":"com.hurence.logisland.record.TimeserieRecordKey","type":"STRUCT","isOptional":true,"fieldSchemas":{"tagname":{"type":"STRING","isOptional":false}}}
@@ -75,9 +69,6 @@ engine:
         kafka.topic.default.partitions: 4
         kafka.topic.default.replicationFactor: 1
 
-
-
-
     - controllerService: influxdb_datastore_service
       component: com.hurence.logisland.service.influxdb.InfluxDBControllerService
       configuration:
@@ -90,7 +81,6 @@ engine:
        influxdb.retention_policy: autogen
        flush.interval: 1000
        batch.size: 50
-
 
     - controllerService: kafka_io
       component: com.hurence.logisland.stream.spark.structured.provider.KafkaStructuredStreamProviderService
@@ -109,6 +99,17 @@ engine:
         kafka.topic.default.partitions: 4
         kafka.topic.default.replicationFactor: 1
 
+    - controllerService: datastore_service
+      component: com.hurence.logisland.service.solr.Solr8ClientService
+      configuration:
+        solr.cloud: false
+        solr.connection.string: http://localhost:8983/solr
+        solr.collection: historian
+        solr.concurrent.requests: 4
+        flush.interval: 1000
+        batch.size: 50
+
+
   streamConfigurations:
 
     - stream: compaction_stream
@@ -121,8 +122,8 @@ engine:
         write.topics.key.serializer: com.hurence.logisland.serializer.KryoSerializer
         write.stream.service.provider: kafka_io
         groupby: tagname
-        chunk.size: 20
-        state.timeout.ms: 5000
+        chunk.size: 50
+        state.timeout.ms: 30000
 
       processorConfigurations:
 
@@ -130,7 +131,7 @@ engine:
           component: com.hurence.logisland.processor.ConvertToTimeseries
           configuration:
             groupby: tagname
-            metric: max;min;avg;count;trend;sax:7,0.01,10
+            metric: max;min;avg;count;trend;sax:7,0.01,100
 
         - processor: binary_encoder
           component: com.hurence.logisland.processor.EncodeBase64
@@ -138,10 +139,15 @@ engine:
             source.fields: chunk_value
             destination.fields: chunk_value
 
-        - processor: stream_debugger
-          component: com.hurence.logisland.processor.DebugStream
+        - processor: solr_publisher
+          component: com.hurence.logisland.processor.datastore.BulkPut
           configuration:
-            event.serializer: json
+            datastore.client.service: datastore_service
+
+      #  - processor: stream_debugger
+      #    component: com.hurence.logisland.processor.DebugStream
+      #    configuration:
+      #      event.serializer: json
 
 
     # - stream: indexing_stream
@@ -202,11 +208,12 @@ engine:
           configuration:
             conflict.resolution.policy: keep_both_fields
             record_name: tagname
+            name: tagname
             record_value: value
             record_time: timestamp
 
         - processor: make_idempotent
           component: com.hurence.logisland.processor.ModifyId
           configuration:
-           id.generation.strategy: hashFields
-           hash.charset: US-ASCII
+            id.generation.strategy: hashFields
+            hash.charset: US-ASCII
