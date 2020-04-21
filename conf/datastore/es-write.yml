@@ -27,7 +27,7 @@ engine:
       type: service
       documentation: elasticsearch service
       configuration:
-        hosts: elasticsearch:9300
+        hosts: elasticsearch:9200
         cluster.name: es-logisland
         batch.size: 500
 
